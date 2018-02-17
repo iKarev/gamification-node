@@ -11,14 +11,14 @@ exports.tops_get_all = (req, res, next) => {
   if (req.query.startDate && req.query.endDate) {
     query.date = {$gte: req.query.startDate, $lte: req.query.endDate}
   } 
-
+  query.userId = req.userData.userId
   Top
     .find(query)
     .select('name targetId price targetName description date periodType type _id')
     .exec()
     .then(docs => {
       res.status(200).json(docs.map(doc => {
-        return {
+        const top = {
           _id: doc._id,
           type: doc.type,
           periodType: doc.periodType,
@@ -26,15 +26,18 @@ exports.tops_get_all = (req, res, next) => {
           description: doc.description,
           price: doc.price,
           date: doc.date,
-          target: {
-            _id: doc.targetId,
-            name: doc.targetName
-          },
           request: {
             type: 'GET',
             url: `http://localhost:3000/targets/${doc._id}`
           }
         }
+        if (doc.targetId) {
+          top.target = {
+            _id: doc.targetId,
+            name: doc.targetName
+          }
+        }
+        return top;
       }));
     })
     .catch(err => {
@@ -59,8 +62,8 @@ exports.tops_create = (req, res, next) => {
         price: req.body.price,
         name: req.body.name,
         date: req.body.date,
-        targetId: req.body.target._id,
-        targetName: req.body.target.name,
+        targetId: req.body.target ? req.body.target._id : null,
+        targetName: req.body.target ? req.body.target.name : null,
       })
       return top
         .save()
@@ -74,10 +77,6 @@ exports.tops_create = (req, res, next) => {
           type: result.type,
           price: result.price,
           date: result.date,
-          target: {
-            _id: result.targetId,
-            name: result.targetName,
-          },
           _id: result._id,
           request: {
             type: 'GET',
@@ -128,7 +127,7 @@ exports.tops_patch = (req, res, next) => {
     updateOps[ops.propName] = ops.value;
   }
   Top
-    .update({_id: id}, { $set: updateOps })  
+    .update({userId: req.userData.userId, _id: id}, { $set: updateOps })  
     .exec()
     .then(result => {
       res.status(200).json({
@@ -150,7 +149,7 @@ exports.tops_patch = (req, res, next) => {
 exports.tops_delete = (req, res, next) => {
   const id = req.params.topId;
   Top
-    .remove({_id: id})
+    .remove({userId: req.userData.userId, _id: id})
     .exec()
     .then(result => {
       res.status(200).json({

@@ -4,8 +4,9 @@ const Target = require('../models/target');
 
 
 exports.targets_get_all_targets = (req, res, next) => {
+  const userId = getRequestId(req);
   Target
-    .find({userId: req.userData.userId, type: req.query.type})
+    .find({userId, type: req.query.type})
     .select('name deadline description parentTargetId type _id')
     .exec()
     .then(docs => {
@@ -37,8 +38,9 @@ exports.targets_get_all_targets = (req, res, next) => {
 };
 
 exports.targets_get_target_children = (req, res, next) => {
+  const userId = getRequestId(req);
   Target
-    .find({userId: req.userData.userId, parentTargetId: req.params.parentTargetId})
+    .find({userId, parentTargetId: req.params.parentTargetId})
     .select('name deadline description parentTargetId type _id')
     .exec()
     .then(docs => {
@@ -107,17 +109,18 @@ exports.targets_create_target = (req, res, next) => {
 };
 
 exports.targets_get_single_target = (req, res, next) => {
+
+  let userId = getRequestId(req);
+
   const id = req.params.targetId;
-  console.log(req.userData)
   const method = id === 'main' ? 'find' : 'findById';
-  const request = id === 'main' ? {userId: req.userData.userId, type: 0} : id
+  const request = id === 'main' ? {userId, type: 0} : id
   Target
     [method](request)
     .select('name description deadline type parentTargetId  _id')
     .exec()
     .then(doc => {
-      console.log(doc)
-      if (doc) {
+      if ((doc && doc.name) || (doc && id === 'main' && doc[0].name)) {
         doc = id === 'main' ? doc[0] : doc;
         res.status(200).json({
           name: doc.name,
@@ -192,4 +195,8 @@ function getDeadline(date) {
 }
 function saveDeadline(dateString) {
   return new Date(dateString.slice(6,10), (dateString.slice(3,5) - 1), dateString.slice(0,2));
+}
+
+function getRequestId(req) {
+  return req.query.friendId || req.userData.userId
 }

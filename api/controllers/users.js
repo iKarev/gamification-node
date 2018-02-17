@@ -4,9 +4,42 @@ const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
 
+exports.users_get_list = (req, res, next) => {
+  User
+    .find({ _id: { $ne: req.userData.userId }})
+    .select('name friends email _id')
+    .exec()
+    .then(docs => {
+      const response = {
+        count: docs.length,
+        users: docs.map(doc => {
+          return {
+            name: doc.name,
+            email: doc.email,
+            _id: doc._id
+          }
+        })
+      }
+      res.status(200).json(response);
+    })
+    .catch(err => { console.log(err); res.status(500).json({error: err}) });
+};
+exports.users_get_friends = (req, res, next) => {
+  User
+    .findById(req.userData.userId)
+    .select('friends')
+    .exec()
+    .then(result => {
+      console.log(result);
+      const response = result;
+      res.status(200).json(response);
+    })
+    .catch(err => { console.log(err); res.status(500).json({error: err}) });
+};
+
 exports.users_login = (req, res, next) => {
   User
-    .find({ email: req.body.email})
+    .find({email: req.body.email})
     .then(user => {
       if (user.length < 1) {
         return res.status(401).json({ message: 'Auth failed' });
@@ -28,6 +61,10 @@ exports.users_login = (req, res, next) => {
           )
           return res.status(200).json({
             message: 'Auth successful',
+            user: {
+              email: user[0].email,
+              _id: user[0]._id
+            },
             token: token
           })
         }
@@ -76,4 +113,61 @@ exports.users_delete_user = (req, res, next) => {
       res.status(200).json({message: 'user deleted'});
     })
     .catch(err => res.status(500).json({error: err}))
+};
+
+exports.users_friendship_request = (req, res, next) => {
+  console.log(req.params.type)
+  const findExportParams = {_id: req.body._id}
+  const exportFriend = {_id: req.userData.userId};
+  const findImportParams = {_id: req.userData.userId}
+  const importFriend = {_id: req.body._id};
+  const setExportParams = {}
+  const setImportParams = {}
+  switch(req.params.type) {
+    case 'request': 
+      exportFriend.status = 'new';
+      importFriend.status = 'request';
+      setExportParams.$push = {friends: exportFriend}
+      setImportParams.$push = {friends: importFriend}
+      break;
+    case 'accept':
+      findExportParams["friends._id"] = req.userData.userId;
+      findImportParams["friends._id"] = req.body._id;
+      setExportParams.$set = {"friends.$.status": 'common'}
+      setImportParams.$set = {"friends.$.status": 'common'}
+      break;
+  }
+
+  if (req.params.type === 'request') {
+    User
+      .find({_id: req.body._id, "friends._id": req.userData.userId})
+      .exec()
+      .then(result => {
+        console.log(result);
+        if (result.length >= 0) {
+          return res.status(500).json({message: 'Relationship with this user is already exists'});
+        } else {
+          User // export friend
+            .update(findExportParams, setExportParams)
+            .exec()
+            .then(result => {
+              User // import friend
+                .update(findImportParams, setImportParams)
+                .exec()
+                .then(result => {
+                  console.log(result);
+                  res.status(200).json({message: `${req.params.type} sended`});
+                })
+            })
+        }
+      })
+      .catch(err => {
+        console.log('--- ERROR ---');
+        console.log(err);
+        console.log('--- ERROR ---');
+        res.status(500).json({error: err});
+      });
+  }
+
+    
 };
