@@ -8,9 +8,10 @@ const topSchema = mongoose.Schema({
   type: { type: Number, required: true },
   price: { type: Number, required: true },
   description: { type: String },
+  done: { type: Boolean },
   date: { type: String, required: true },
-  targetName: { type: String, required: true },
-  targetId: { type: mongoose.Schema.Types.ObjectId, ref: 'Target', required: true }
+  targetName: { type: String },
+  targetId: { type: mongoose.Schema.Types.ObjectId, ref: 'Target' }
 })
 
 module.exports = mongoose.model('Top', topSchema);

@@ -1,13 +1,14 @@
 const mongoose = require('mongoose');
 
 const Doing = require('../models/doing');
-
+const Trinaries = require('../shared/trinaries');
 
 exports.doings_get_list_of_type = (req, res, next) => {
   console.log('doings_get_list_of_type');
   console.log(req.query);
+  const userId = Trinaries.getRequestId(req);
   Doing
-    .find({userId: req.userData.userId, periodType: req.query.periodType})
+    .find({userId, periodType: req.query.periodType})
     .select('name type price description implements multiplier _id')
     .exec()
     .then(docs => {
@@ -34,8 +35,9 @@ exports.doings_get_list_of_type = (req, res, next) => {
 };
  
 exports.doings_get_doings_of_date = (req, res, next) => {
+  const userId = Trinaries.getRequestId(req);
   Doing
-    .find({userId: req.userData.userId, periodType: req.params.periodType})
+    .find({userId, periodType: req.params.periodType})
     .select('name type price description implements multiplier _id')
     .exec()
     .then(docs => {

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const Top = require('../models/top');
 const Target = require('../models/target');
+const Trinaries = require('../shared/trinaries');
 
 exports.tops_get_all = (req, res, next) => {
   const query = {};
@@ -11,10 +12,10 @@ exports.tops_get_all = (req, res, next) => {
   if (req.query.startDate && req.query.endDate) {
     query.date = {$gte: req.query.startDate, $lte: req.query.endDate}
   } 
-  query.userId = req.userData.userId
+  query.userId = Trinaries.getRequestId(req);
   Top
     .find(query)
-    .select('name targetId price targetName description date periodType type _id')
+    .select('name done targetId price targetName description date periodType type _id')
     .exec()
     .then(docs => {
       res.status(200).json(docs.map(doc => {
@@ -25,6 +26,7 @@ exports.tops_get_all = (req, res, next) => {
           name: doc.name,
           description: doc.description,
           price: doc.price,
+          done: doc.done,
           date: doc.date,
           request: {
             type: 'GET',
@@ -47,48 +49,66 @@ exports.tops_get_all = (req, res, next) => {
 };
 
 exports.tops_create = (req, res, next) => {
-  Target
-    .findById(req.body.target._id)
-    .then(target => {
-      if (!target) {
-        return res.status(404).json({message: 'Target not found'});
-      }
-      const top = new Top({
-        _id: mongoose.Types.ObjectId(),
-        userId: req.userData.userId,
-        description: req.body.description,
-        type: req.body.type,
-        periodType: req.body.periodType,
-        price: req.body.price,
-        name: req.body.name,
-        date: req.body.date,
-        targetId: req.body.target ? req.body.target._id : null,
-        targetName: req.body.target ? req.body.target.name : null,
-      })
-      return top
-        .save()
+  console.log(req.body);
+  checkTargetExisting(req.body).then((exist) => {
+    const top = new Top({
+      _id: mongoose.Types.ObjectId(),
+      userId: req.userData.userId,
+      description: req.body.description,
+      type: req.body.type,
+      periodType: req.body.periodType,
+      price: req.body.price,
+      name: req.body.name,
+      date: req.body.date,
+      targetId: req.body.target ? req.body.target._id : null,
+      targetName: req.body.target ? req.body.target.name : null,
     })
-    .then(result => {
-      res.status(201).json({
-        message: 'Created top successfully',
-        createdTop: {
-          name: result.name,
-          description: result.description,
-          type: result.type,
-          price: result.price,
-          date: result.date,
-          _id: result._id,
-          request: {
-            type: 'GET',
-            url: `http://localhost:3000/tops/${result._id}`
-          }
+    return top
+      .save()
+  })
+  .then(result => {
+    res.status(201).json({
+      message: 'Created top successfully',
+      createdTop: {
+        name: result.name,
+        description: result.description,
+        type: result.type,
+        price: result.price,
+        date: result.date,
+        _id: result._id,
+        request: {
+          type: 'GET',
+          url: `http://localhost:3000/tops/${result._id}`
         }
-      });
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500).json({error: err})
+      }
     });
+  })
+  .catch((err) => {
+    console.log(err);
+    res.status(500).json({error: err})
+  });
+
+  function checkTargetExisting (top) {
+    return new Promise((resolve) => {
+      if (top.target) {
+        Target
+          .findById(top.target._id)
+          .then(target => {
+            if (!target) {
+              return res.status(404).json({message: 'Target not found'});
+            } else {
+              resolve(true);
+            }
+          });
+      } else {
+        if (top.type === 0 || top.type === 3) {
+          return res.status(404).json({message: 'Target not defined'});
+        } else {
+          resolve(true);
+        }
+      }
+    });
+  }
 };
 
 exports.tops_get_single = (req, res, next) => {
@@ -106,6 +126,7 @@ exports.tops_get_single = (req, res, next) => {
           name: result.name,
           price: result.price,
           type: result.type,
+          done: result.done,
           periodType: result.periodType,
           date: result.date,
           targetId: result.targetId,
@@ -126,6 +147,7 @@ exports.tops_patch = (req, res, next) => {
   for (const ops of req.body) {
     updateOps[ops.propName] = ops.value;
   }
+  console.log(updateOps);
   Top
     .update({userId: req.userData.userId, _id: id}, { $set: updateOps })  
     .exec()

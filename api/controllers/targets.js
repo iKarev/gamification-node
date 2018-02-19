@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const Target = require('../models/target');
-
+const Trinaries = require('../shared/trinaries');
 
 exports.targets_get_all_targets = (req, res, next) => {
-  const userId = getRequestId(req);
+  const userId = Trinaries.getRequestId(req);
   Target
     .find({userId, type: req.query.type})
     .select('name deadline description parentTargetId type _id')
@@ -38,7 +38,7 @@ exports.targets_get_all_targets = (req, res, next) => {
 };
 
 exports.targets_get_target_children = (req, res, next) => {
-  const userId = getRequestId(req);
+  const userId = Trinaries.getRequestId(req);
   Target
     .find({userId, parentTargetId: req.params.parentTargetId})
     .select('name deadline description parentTargetId type _id')
@@ -110,7 +110,7 @@ exports.targets_create_target = (req, res, next) => {
 
 exports.targets_get_single_target = (req, res, next) => {
 
-  let userId = getRequestId(req);
+  const userId = Trinaries.getRequestId(req);
 
   const id = req.params.targetId;
   const method = id === 'main' ? 'find' : 'findById';
@@ -195,8 +195,4 @@ function getDeadline(date) {
 }
 function saveDeadline(dateString) {
   return new Date(dateString.slice(6,10), (dateString.slice(3,5) - 1), dateString.slice(0,2));
-}
-
-function getRequestId(req) {
-  return req.query.friendId || req.userData.userId
 }

@@ -3,10 +3,12 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
+const Trinaries = require('../shared/trinaries');
 
 exports.users_get_list = (req, res, next) => {
+  const userId = Trinaries.getRequestId(req);
   User
-    .find({ _id: { $ne: req.userData.userId }})
+    .find({ _id: { $ne: userId }})
     .select('name friends email _id')
     .exec()
     .then(docs => {
@@ -25,8 +27,9 @@ exports.users_get_list = (req, res, next) => {
     .catch(err => { console.log(err); res.status(500).json({error: err}) });
 };
 exports.users_get_friends = (req, res, next) => {
+  const userId = Trinaries.getRequestId(req);
   User
-    .findById(req.userData.userId)
+    .findById(userId)
     .select('friends')
     .exec()
     .then(result => {
@@ -94,8 +97,24 @@ exports.users_signup = (req, res, next) => {
             user
               .save()
               .then(result => {
-                res.status(201).json({
-                  message: 'User created'
+                console.log(result)
+                const token = jwt.sign(
+                  {
+                    email: result.email,
+                    userId: result._id
+                  }, 
+                  process.env.JWT_KEY, 
+                  {
+                    expiresIn: "1d"
+                  }
+                )
+                return res.status(200).json({
+                  message: 'User created',
+                  user: {
+                    email: result.email,
+                    _id: result._id
+                  },
+                  token: token
                 })
               })
           }
@@ -116,7 +135,6 @@ exports.users_delete_user = (req, res, next) => {
 };
 
 exports.users_friendship_request = (req, res, next) => {
-  console.log(req.params.type)
   const findExportParams = {_id: req.body._id}
   const exportFriend = {_id: req.userData.userId};
   const findImportParams = {_id: req.userData.userId}
@@ -136,38 +154,57 @@ exports.users_friendship_request = (req, res, next) => {
       setExportParams.$set = {"friends.$.status": 'common'}
       setImportParams.$set = {"friends.$.status": 'common'}
       break;
+    case 'remove':
+      findExportParams["friends._id"] = req.userData.userId;
+      findImportParams["friends._id"] = req.body._id;
+      setExportParams.$pull = {friends: {_id: req.userData.userId}}
+      setImportParams.$pull = {friends: {_id: req.body._id}}
+      break;
   }
 
-  if (req.params.type === 'request') {
-    User
-      .find({_id: req.body._id, "friends._id": req.userData.userId})
+  checkUserRequest(req).then(() => {
+    User // export friend
+      .update(findExportParams, setExportParams)
       .exec()
       .then(result => {
-        console.log(result);
-        if (result.length >= 0) {
-          return res.status(500).json({message: 'Relationship with this user is already exists'});
-        } else {
-          User // export friend
-            .update(findExportParams, setExportParams)
-            .exec()
-            .then(result => {
-              User // import friend
-                .update(findImportParams, setImportParams)
-                .exec()
-                .then(result => {
-                  console.log(result);
-                  res.status(200).json({message: `${req.params.type} sended`});
-                })
-            })
-        }
-      })
-      .catch(err => {
-        console.log('--- ERROR ---');
-        console.log(err);
-        console.log('--- ERROR ---');
-        res.status(500).json({error: err});
+        console.log('result 1:')
+        console.log(result)
+        User // import friend
+          .update(findImportParams, setImportParams)
+          .exec()
+          .then(result => {
+            console.log('result 2:')
+            console.log(result);
+            res.status(200).json({message: `${req.params.type} sended`});
+          });
       });
-  }
-
-    
+  });
 };
+
+function checkUserRequest (req) {
+  return new Promise((resolve) => {
+    if (req.params.type === 'request') {
+      User
+        .find({_id: req.body._id, "friends._id": req.userData.userId})
+        .exec()
+        .then(result => {
+          if (result.length >= 1) {
+            return res.status(500).json({message: 'Relationship with this user is already exists'});
+          } else {
+            resolve();
+          }
+        })
+        .catch(err => {
+          showError(err)
+          res.status(500).json({error: err});
+        });
+    } else {
+      resolve();
+    }
+  })
+}
+function showError(err) {
+  console.log('--- ERROR ---');
+  console.log(err);
+  console.log('--- ERROR ---');
+}
