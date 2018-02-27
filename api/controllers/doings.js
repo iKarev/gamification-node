@@ -4,18 +4,19 @@ const Doing = require('../models/doing');
 const Trinaries = require('../shared/trinaries');
 
 exports.doings_get_list_of_type = (req, res, next) => {
-  console.log('doings_get_list_of_type');
-  console.log(req.query);
-  const userId = Trinaries.getRequestId(req);
+  const query = {userId: Trinaries.getRequestId(req)};
+  if (req.query.periodType) { query.periodType = req.query.periodType; }
+  let props = 'name type price description implements multiplier _id';
+  if (!query.periodType) props += ' periodType';
   Doing
-    .find({userId, periodType: req.query.periodType})
-    .select('name type price description implements multiplier _id')
+    .find(query)
+    .select(props)
     .exec()
     .then(docs => {
       const response = {
         count: docs.length,
         doings: docs.map(doc => {
-          return {
+          const response = {
             name: doc.name,
             type: doc.type,
             price: doc.price,
@@ -27,6 +28,17 @@ exports.doings_get_list_of_type = (req, res, next) => {
               url: `http://localhost:3000/doings/${doc._id}`
             }
           }
+          if (!query.periodType) {
+            response.periodType = doc.periodType
+          }
+          if (req.query.startDate && req.query.endDate) {
+            response.implements = doc.implements.filter((item) => {
+              return item && (item.date >= req.query.startDate && item.date <= req.query.endDate)
+            })
+          } else {
+            response.implements = doc.implements
+          }
+          return response;
         })
       }
       res.status(200).json(response);
@@ -35,9 +47,10 @@ exports.doings_get_list_of_type = (req, res, next) => {
 };
  
 exports.doings_get_doings_of_date = (req, res, next) => {
-  const userId = Trinaries.getRequestId(req);
+  const query = {userId: Trinaries.getRequestId(req)};
+  if (req.params.periodType) { query.periodType = req.params.periodType; }
   Doing
-    .find({userId, periodType: req.params.periodType})
+    .find(query)
     .select('name type price description implements multiplier _id')
     .exec()
     .then(docs => {
@@ -45,7 +58,6 @@ exports.doings_get_doings_of_date = (req, res, next) => {
         count: docs.length,
         doings: docs.map(doc => {
           if (req.params && req.params.date) {
-            console.log(doc.implements)
             return {
               name: doc.name,
               type: doc.type,
@@ -128,7 +140,6 @@ exports.doings_patch_doing = (req, res, next) => {
     .update({_id: id, userId: req.userData.userId}, { $set: updateOps })  
     .exec()
     .then(result => {
-      console.log(result)
       res.status(200).json({
         message: 'Doing updated',
         request: {
@@ -174,7 +185,6 @@ exports.doings_patch_implements = (req, res, next) => {
     .update({_id: id, userId: req.userData.userId, "implements.date": req.body.date}, { $set: { "implements.$.value" : req.body.value} })  
     .exec()
     .then(result => {
-      console.log(result)
       res.status(200).json({
         message: `Implemnt changed to ${req.body.value}`,
         request: {

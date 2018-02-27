@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+const Top = require('../models/top');
 const Target = require('../models/target');
 const Trinaries = require('../shared/trinaries');
 
@@ -81,7 +82,6 @@ exports.targets_create_target = (req, res, next) => {
     description: req.body.description,
     type: parseInt(req.body.type)
   });
-  console.log(target);
   target
     .save()
     .then(result => {
@@ -187,6 +187,7 @@ exports.targets_delete_target = (req, res, next) => {
       res.status(500).json({error: err});
     })
 };
+
 function checkNumber (num) {
   return num < 10 ? `0${num}` : num;
 }
@@ -196,3 +197,29 @@ function getDeadline(date) {
 function saveDeadline(dateString) {
   return new Date(dateString.slice(6,10), (dateString.slice(3,5) - 1), dateString.slice(0,2));
 }
+
+exports.targets_get_statistics = (req, res, next) => {
+  const query = {userId: req.userData.userId};
+  Top
+    .find(query)
+    .select('targetId targetName periodType _id')
+    .exec()
+    .then(docs => {
+      console.log(docs)
+      res.status(200).json(docs.map(doc => {
+        return {
+          _id: doc._id,
+          periodType: doc.periodType,
+          target: {
+            _id: doc.targetId,
+            name: doc.targetName
+          }
+        }
+      }));
+    })
+    .catch(err => {
+      console.log(err);
+      res.status(500).json({error: err});
+    })
+};
+

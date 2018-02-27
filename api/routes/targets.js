@@ -7,6 +7,8 @@ const TargetsController = require('../controllers/targets');
 
 router.get('/', checkAuth, TargetsController.targets_get_all_targets);
 
+router.get('/statistics', checkAuth, TargetsController.targets_get_statistics);
+
 router.post('/', checkAuth, TargetsController.targets_create_target);
 
 router.get('/:targetId', checkAuth, checkFriend, TargetsController.targets_get_single_target);

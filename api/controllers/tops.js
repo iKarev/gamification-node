@@ -5,14 +5,12 @@ const Target = require('../models/target');
 const Trinaries = require('../shared/trinaries');
 
 exports.tops_get_all = (req, res, next) => {
-  const query = {};
-
+  const query = {userId: Trinaries.getRequestId(req)};
   if (req.query.periodType) { query.periodType = req.query.periodType; } 
   if (req.query.date) { query.date = req.query.date; } 
   if (req.query.startDate && req.query.endDate) {
     query.date = {$gte: req.query.startDate, $lte: req.query.endDate}
   } 
-  query.userId = Trinaries.getRequestId(req);
   Top
     .find(query)
     .select('name done targetId price targetName description date periodType type _id')
@@ -49,7 +47,6 @@ exports.tops_get_all = (req, res, next) => {
 };
 
 exports.tops_create = (req, res, next) => {
-  console.log(req.body);
   checkTargetExisting(req.body).then((exist) => {
     const top = new Top({
       _id: mongoose.Types.ObjectId(),
@@ -90,7 +87,7 @@ exports.tops_create = (req, res, next) => {
 
   function checkTargetExisting (top) {
     return new Promise((resolve) => {
-      if (top.target) {
+      if (top.target && top.target._id) {
         Target
           .findById(top.target._id)
           .then(target => {
@@ -147,7 +144,6 @@ exports.tops_patch = (req, res, next) => {
   for (const ops of req.body) {
     updateOps[ops.propName] = ops.value;
   }
-  console.log(updateOps);
   Top
     .update({userId: req.userData.userId, _id: id}, { $set: updateOps })  
     .exec()

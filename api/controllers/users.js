@@ -33,7 +33,6 @@ exports.users_get_friends = (req, res, next) => {
     .select('friends')
     .exec()
     .then(result => {
-      console.log(result);
       const response = result;
       res.status(200).json(response);
     })
@@ -97,7 +96,6 @@ exports.users_signup = (req, res, next) => {
             user
               .save()
               .then(result => {
-                console.log(result)
                 const token = jwt.sign(
                   {
                     email: result.email,
@@ -167,14 +165,10 @@ exports.users_friendship_request = (req, res, next) => {
       .update(findExportParams, setExportParams)
       .exec()
       .then(result => {
-        console.log('result 1:')
-        console.log(result)
         User // import friend
           .update(findImportParams, setImportParams)
           .exec()
           .then(result => {
-            console.log('result 2:')
-            console.log(result);
             res.status(200).json({message: `${req.params.type} sended`});
           });
       });
