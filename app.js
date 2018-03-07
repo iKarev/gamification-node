@@ -10,6 +10,9 @@ const topsRoutes = require('./api/routes/tops');
 const usersRoutes = require('./api/routes/users');
 const doingsRoutes = require('./api/routes/doings');
 
+// heroku auth:token
+// Use the result as the password when prompted.
+
 mongoose.connect(
   'mongodb://nodejs-rest:' +
     process.env.MONGO_ATLAS_PW +
