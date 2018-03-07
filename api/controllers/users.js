@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
 const User = require('../models/user');
+const Target = require('../models/target');
 const Trinaries = require('../shared/trinaries');
 
 exports.users_get_list = (req, res, next) => {
@@ -197,6 +198,37 @@ function checkUserRequest (req) {
     }
   })
 }
+
+
+exports.user_get_notifications = (req, res, next) => {
+  const userId = req.userData.userId;
+  const newDate = new Date();
+  const nextDate = new Date(newDate.getFullYear(), newDate.getMonth() + 1, newDate.getDate());
+  Target
+    .find({ userId, deadline: {$gte: newDate, $lte: nextDate}})
+    .select('name deadline description parentTargetId type _id')
+    .exec()
+    .then(docs => {
+      const response = {
+        count: docs.length,
+        notifications: {
+          closestTargets: docs.map(doc => {
+            return {
+              name: doc.name,
+              deadline: doc.deadline,
+              description: doc.description,
+              parentTargetId: doc.parentTargetId,
+              type: doc.type,
+              _id: doc._id
+            }
+          })
+        }
+      }
+      res.status(200).json(response);
+    })
+    .catch(err => { console.log(err); res.status(500).json({error: err}) });
+};
+
 function showError(err) {
   console.log('--- ERROR ---');
   console.log(err);

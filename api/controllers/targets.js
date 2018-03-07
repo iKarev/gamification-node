@@ -6,8 +6,9 @@ const Trinaries = require('../shared/trinaries');
 
 exports.targets_get_all_targets = (req, res, next) => {
   const userId = Trinaries.getRequestId(req);
+  const type = req.query.type === '4' ? {$gte: 3} : req.query.type;
   Target
-    .find({userId, type: req.query.type})
+    .find({userId, type})
     .select('name deadline description parentTargetId type _id')
     .exec()
     .then(docs => {
@@ -21,7 +22,6 @@ exports.targets_get_all_targets = (req, res, next) => {
               parentTargetId: doc.parentTargetId,
               description: doc.description,
               deadline: doc.deadline,
-              // deadline: getDeadline(doc.deadline),
               _id: doc._id,
               request: {
                 type: 'GET',

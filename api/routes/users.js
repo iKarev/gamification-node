@@ -16,4 +16,6 @@ router.get('/friendship', checkAuth, UsersController.users_get_friends);
 
 router.patch('/friendship/:type', checkAuth, UsersController.users_friendship_request);
 
+router.get('/notifications', checkAuth, UsersController.user_get_notifications);
+
 module.exports = router;
